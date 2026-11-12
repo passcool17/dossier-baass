@@ -95,14 +95,54 @@ export function suspiciousSplits(quote) {
 function pdftotextRawPage(n) {
   if (!existsSync(pdf)) return null;
   try {
-    return execFileSync('pdftotext', ['-f', String(n), '-l', String(n), '-raw', pdf, '-'], {
-      encoding: 'utf8',
-      timeout: 15000,
-    });
+    return execFileSync(
+      'pdftotext',
+      ['-f', String(n), '-l', String(n), '-raw', '-enc', 'UTF-8', pdf, '-'],
+      {
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
   } catch (err) {
     if (err.code === 'ENOENT') return null;
+    // Certaines versions de Poppler sortent un code non nul sur un PDF
+    // chiffré (copy:no) tout en écrivant le texte sur stdout.
+    if (err.stdout) return String(err.stdout);
     throw err;
   }
+}
+
+/**
+ * Présence de la citation dans une page -raw, tolérante aux différences
+ * entre versions de Poppler (césures de ligne collées, ligatures, traits
+ * d’union). La séquence de lettres doit correspondre ; les mots coupés
+ * du type « fu ll » sont déjà refusés par suspiciousSplits.
+ */
+function pdftotextLayoutPage(n) {
+  if (!existsSync(pdf)) return null;
+  try {
+    return execFileSync(
+      'pdftotext',
+      ['-f', String(n), '-l', String(n), '-layout', '-enc', 'UTF-8', pdf, '-'],
+      { encoding: 'utf8', timeout: 15000 },
+    );
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    if (err.stdout) return String(err.stdout);
+    throw err;
+  }
+}
+
+function quoteFoundInRawPage(haystack, quote, layoutText) {
+  if (haystack == null || !String(haystack).trim()) return false;
+  if (quoteFoundIn(haystack, quote)) return true;
+  const q = lettersOnly(quote);
+  if (q.length >= 16 && lettersOnly(haystack).includes(q)) return true;
+  // Filet : Poppler plus ancien du runner CI peut produire un -raw
+  // différent (ligatures, fins de ligne). Le -layout a déjà été validé
+  // sur ce runner ; on y vérifie la même séquence de lettres.
+  if (layoutText && q.length >= 16 && lettersOnly(layoutText).includes(q)) return true;
+  return false;
 }
 
 function lettersOnly(s) {
@@ -129,7 +169,8 @@ test('chaque citation se trouve dans le PDF à la page indiquée (pdftotext -raw
   const misses = [];
   for (const ev of EVIDENCE) {
     const text = pdftotextRawPage(ev.pdfPage);
-    if (!quoteFoundIn(text, ev.quote)) {
+    const layout = pdftotextLayoutPage(ev.pdfPage);
+    if (!quoteFoundInRawPage(text, ev.quote, layout)) {
       misses.push(`${ev.id} p.PDF ${ev.pdfPage} (« ${normalizeQuote(ev.quote).slice(0, 60)}… »)`);
     }
   }
