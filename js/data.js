@@ -1,6 +1,6 @@
 /** Données du jeu. Les citations des preuves sont des extraits mot pour mot du document. */
 
-export const VERSION = 'baass-v1';
+export const VERSION = 'baass-v2';
 export const SAVE_KEY = 'baass.dossier.v1';
 export const SETTINGS_KEY = 'baass.dossier.settings.v1';
 
@@ -195,7 +195,7 @@ export const EVIDENCE = [
     pdfPage: 19,
     printedPage: '13',
     quote:
-      'This program would specifically relate to technical area #9 with possible collateral involvement of other t echnical areas.',
+      'This program would specifically relate to technical area #9 with possible collateral involvement of other technical areas.',
     summary:
       'Le Project Engagement est surtout rattaché au domaine n° 9 (interface humaine), avec d’éventuels liens vers d’autres domaines. C’est le cadre du programme d’observation proposé.',
   },
@@ -209,7 +209,7 @@ export const EVIDENCE = [
     pdfPage: 11,
     printedPage: '5',
     quote:
-      'concerns the effects upon humans (#10) who were in close proximity to the functioning of very advanced spacecraft in th e Colares Island, Brazil incidents.',
+      'concerns the effects upon humans (#10) who were in close proximity to the functioning of very advanced spacecraft in the Colares Island, Brazil incidents.',
     summary:
       'Le domaine n° 10 (effets sur l’humain) est associé, dans les recommandations, aux incidents de l’île de Colares (Brésil). BAASS demande à la DIA de récupérer des dossiers auprès de l’armée de l’air brésilienne.',
   },
@@ -223,7 +223,7 @@ export const EVIDENCE = [
     pdfPage: 11,
     printedPage: '5',
     quote:
-      'Other important data for Agency acquisition pertain t o effect s upon nuclear facilities where anomalous spacecraft were in close proximity: such as those incidences at RAF Bentwaters, England, Malmstrom AFB in Montana and several others over the years.',
+      'Other important data for Agency acquisition pertain to effects upon nuclear facilities where anomalous spacecraft were in close proximity: such as those incidences at RAF Bentwaters, England, Malmstrom AFB in Montana and several others over the years.',
     summary:
       'Le plan demande l’accès à des données déjà détenues par le gouvernement sur des incidents près d’installations nucléaires (RAF Bentwaters, Malmstrom AFB, etc.). Ces noms sont cités comme exemples à documenter, pas comme preuves démontrées dans ce texte.',
   },
@@ -252,7 +252,7 @@ export const EVIDENCE = [
     pdfPage: 8,
     printedPage: '2',
     quote:
-      'Project Physics was mandated by t he DIA to study the current research on all twelve t echnical areas. Earthtech and its subcontractors will deliver approximately 24 in depth position papers targeted to twelve technical areas by July 31, 2009.',
+      'Project Physics was mandated by the DIA to study the current research on all twelve technical areas. Earthtech and its subcontractors will deliver approximately 24 in depth position papers targeted to twelve technical areas by July 31, 2009.',
     summary:
       'Projet mandaté par la DIA : faire le point sur la recherche déjà en cours dans les douze domaines. Earthtech doit livrer environ 24 textes d’ici le 31 juillet 2009.',
   },
@@ -280,7 +280,7 @@ export const EVIDENCE = [
     pdfPage: 8,
     printedPage: '2',
     quote:
-      'Project Cooperation requires the fu ll cooperation between the DIA and BAASS and lays out t he expected frameworks and specifics of this cooperation. Thi s necessitat es the help and cooperation from t he DIA in assisting BAASS to obtain the high value fi lm, hardware, relevant materials and information that are essential to the successful completion of this proj ect.',
+      'Project Cooperation requires the full cooperation between the DIA and BAASS and lays out the expected frameworks and specifics of this cooperation. This necessitates the help and cooperation from the DIA in assisting BAASS to obtain the high value film, hardware, relevant materials and information that are essential to the successful completion of this project.',
     summary:
       'Ce projet décrit le cadre de coopération demandé entre la DIA et BAASS, surtout pour obtenir films, matériel et informations déjà détenus. Le texte insiste sur le fait que cette aide est jugée essentielle.',
   },
@@ -294,7 +294,7 @@ export const EVIDENCE = [
     pdfPage: 8,
     printedPage: '2',
     quote:
-      'Project Campus will seek to stimulat e, motivate and encourage the senior levels of the academic community in the United States to seriou sly study advanced aerospace vehicles and their performances.',
+      'Project Campus will seek to stimulate, motivate and encourage the senior levels of the academic community in the United States to seriously study advanced aerospace vehicles and their performances.',
     summary:
       'Le projet veut convaincre des universitaires américains d’étudier sérieusement ces questions. C’est un programme de mobilisation du milieu universitaire, annoncé pour 2008 et au-delà.',
   },
@@ -308,7 +308,7 @@ export const EVIDENCE = [
     pdfPage: 8,
     printedPage: '2',
     quote:
-      'Project Database will bring together all existing data from mu ltiple separate databases on advanced aerospace vehicle performances in the United States, and ultimately in other countries for the past 60 years. This new database will be searchable by keywords that address all twelve technical areas.',
+      'Project Database will bring together all existing data from multiple separate databases on advanced aerospace vehicle performances in the United States, and ultimately in other countries for the past 60 years. This new database will be searchable by keywords that address all twelve technical areas.',
     summary:
       'L’idée est de fusionner plusieurs bases de données existantes (États-Unis, puis d’autres pays, sur environ 60 ans) en une base consultable selon les douze domaines techniques.',
   },
@@ -322,7 +322,7 @@ export const EVIDENCE = [
     pdfPage: 9,
     printedPage: '3',
     quote:
-      'Project Oral History will contact and reco rd interviews with dozens of highly placed individuals from industry and the military who have had direct knowledge of film evidence, physical material evidence, hardware itself, biological tissue and other m at erial as they pertain to advanced aerial t echnology in the United States over the past several decades.',
+      'Project Oral History will contact and record interviews with dozens of highly placed individuals from industry and the military who have had direct knowledge of film evidence, physical material evidence, hardware itself, biological tissue and other material as they pertain to advanced aerial technology in the United States over the past several decades.',
     summary:
       'Le projet prévoit d’enregistrer des entrevues avec des personnes bien placées dans l’industrie et l’armée, au sujet de films, de matériel ou de tissus. C’est un programme d’histoire orale à mener, pas le contenu de ces entrevues.',
   },
@@ -336,7 +336,7 @@ export const EVIDENCE = [
     pdfPage: 9,
     printedPage: '3',
     quote:
-      'Project Blue Book Materials will obtain the case files and associat ed trace materials with the help of DIA of multiple high value cases involving advanced aerospace vehicles that were never included in Project Blue Book presumably because they were deemed too sensitive.',
+      'Project Blue Book Materials will obtain the case files and associated trace materials with the help of DIA of multiple high value cases involving advanced aerospace vehicles that were never included in Project Blue Book presumably because they were deemed too sensitive.',
     summary:
       'BAASS veut obtenir, avec l’aide de la DIA, des dossiers et traces qui, selon le texte, n’auraient pas été versés au Project Blue Book officiel, jugés trop sensibles. Le plan exprime cette hypothèse et cette demande d’accès.',
   },
@@ -350,7 +350,7 @@ export const EVIDENCE = [
     pdfPage: 9,
     printedPage: '3',
     quote:
-      'Project Northern Tier will obtain all the information and case files pertaining to dozens of cases in which advanced aerospace ve hicles flew over restricted air force bases containing nuclear weapons, hovered over weapon storage depots and interfered with funct ional integrity of ICBM missile systems during the 1960s and 1970s.',
+      'Project Northern Tier will obtain all the information and case files pertaining to dozens of cases in which advanced aerospace vehicles flew over restricted air force bases containing nuclear weapons, hovered over weapon storage depots and interfered with functional integrity of ICBM missile systems during the 1960s and 1970s.',
     summary:
       'Le projet vise à rassembler les dossiers d’incidents des années 1960–1970 près de bases nucléaires américaines (survol, vol stationnaire, interférence rapportée avec des ICBM). Le plan veut obtenir ces dossiers ; il ne les joint pas.',
   },
@@ -364,7 +364,7 @@ export const EVIDENCE = [
     pdfPage: 9,
     printedPage: '3',
     quote:
-      'Project Colares will obtain mat erials and case files, with help from the DIA, from an extensive series of advanced aerospace incidents, many of which caused death and injury to indigenous inhabitants, occurring on Colares Island in th e Northern area of Brazil in 1977. The Brazilian Air Force conduct ed an investigation and obtained multiple photographs, instrumented det ection and eyewitness t estimony, much of which pointed t o pot entially hostile activity by the advanced aerospace vehicles.',
+      'Project Colares will obtain materials and case files, with help from the DIA, from an extensive series of advanced aerospace incidents, many of which caused death and injury to indigenous inhabitants, occurring on Colares Island in the Northern area of Brazil in 1977. The Brazilian Air Force conducted an investigation and obtained multiple photographs, instrumented detection and eyewitness testimony, much of which pointed to potentially hostile activity by the advanced aerospace vehicles.',
     summary:
       'BAASS demande l’aide de la DIA pour obtenir les dossiers de l’armée de l’air brésilienne sur une série d’incidents en 1977 à l’île de Colares (photos, mesures, témoignages, blessures rapportées). Encore un plan d’acquisition de documents.',
   },
@@ -378,9 +378,9 @@ export const EVIDENCE = [
     pdfPage: 45,
     printedPage: 'Annexe 2, p. 10',
     quote:
-      '2002 SEALED AFFIDAVIT OF 1843 (a)(2 ), 1843(a)( 1)(B)',
+      '2002 SEALED AFFIDAVIT OF 1843(a)(2), 1843(a)(1)(B)',
     summary:
-      'L’annexe 2 du plan joint un affidavit scellé de 2002. Le nom du déclarant est caviardé et porté comme « 1843 (a)(2 ), 1843(a)( 1)(B) ». On ne devine pas ce nom. C’est un témoignage joint au dossier, pas une vérification par BAASS.',
+      'L’annexe 2 du plan joint un affidavit scellé de 2002. Le nom du déclarant est caviardé et porté comme « 1843(a)(2), 1843(a)(1)(B) ». On ne devine pas ce nom. C’est un témoignage joint au dossier, pas une vérification par BAASS.',
   },
   {
     id: 'roswell-pio',

@@ -1,10 +1,10 @@
 /* Service worker versionné — change CACHE pour invalider l’ancien cache. */
-const CACHE = 'baass-v1';
+const CACHE = 'baass-v2';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=baass-v1',
-  './js/main.js?v=baass-v1',
+  './style.css?v=baass-v2',
+  './js/main.js?v=baass-v2',
   './js/ui.js',
   './js/engine.js',
   './js/data.js',
