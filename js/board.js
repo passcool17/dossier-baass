@@ -657,35 +657,42 @@ function attachSceneMethods(scene) {
     const dim = this.add.rectangle(0, 0, w, h, 0x0c0a08, 0.55).setOrigin(0, 0);
     const pw = Math.min(w - 16, 360);
     const ph = Math.min(h - 24, 280);
-    const paper = this.add.rectangle(w / 2, h / 2 - 10, pw, ph, 0xf4ead4, 0.97);
+    // Position finale identique avec ou sans tween (+16), pour que le papier
+    // ne remonte pas sous la première rangée de tuiles (mouvement réduit).
+    const cy = h / 2 - 10 + (reduced() ? 16 : 0);
+    const paper = this.add.rectangle(w / 2, cy, pw, ph, 0xf4ead4, 0.97);
     paper.setStrokeStyle(3, 0x8b2e2e);
+    const top = cy - ph / 2;
     const eyebrow = this.add
-      .text(w / 2, h / 2 - ph / 2 + 22, 'FICTION  —  PAS UN FAIT DU DOCUMENT', {
+      .text(w / 2, top + 18, 'FICTION  —  PAS UN FAIT DU DOCUMENT', {
         fontFamily: 'system-ui, Segoe UI, sans-serif',
-        fontSize: '10px',
+        fontSize: '11px',
         fontStyle: 'bold',
         color: '#8b2e2e',
         letterSpacing: 1,
+        padding: { top: 6, bottom: 4, left: 4, right: 4 },
       })
       .setOrigin(0.5, 0);
     const title = this.add
-      .text(w / 2, h / 2 - ph / 2 + 44, '', {
+      .text(w / 2, top + 48, '', {
         fontFamily: 'Palatino, "Times New Roman", serif',
         fontSize: '20px',
         fontStyle: 'bold',
         color: '#1a1612',
         align: 'center',
         wordWrap: { width: pw - 32 },
+        padding: { top: 4, bottom: 2 },
       })
       .setOrigin(0.5, 0);
     const body = this.add
-      .text(w / 2, h / 2 - ph / 2 + 86, '', {
+      .text(w / 2, top + 90, '', {
         fontFamily: 'system-ui, Segoe UI, sans-serif',
         fontSize: '14px',
         color: '#1a1612',
         align: 'left',
         wordWrap: { width: pw - 36, useAdvancedWrap: true },
         lineSpacing: 3,
+        padding: { top: 2, bottom: 2 },
       })
       .setOrigin(0.5, 0);
     this.eventLayer.add([dim, paper, eyebrow, title, body]);

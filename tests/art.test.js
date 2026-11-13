@@ -9,12 +9,12 @@ import { defaultSettings } from '../js/save.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-test('version de cache baass-v3', () => {
-  assert.equal(VERSION, 'baass-v3');
+test('version de cache baass-v4', () => {
+  assert.equal(VERSION, 'baass-v4');
   const sw = readFileSync(join(root, 'sw.js'), 'utf8');
-  assert.match(sw, /baass-v3/);
+  assert.match(sw, /baass-v4/);
   const html = readFileSync(join(root, 'index.html'), 'utf8');
-  assert.match(html, /baass-v3/);
+  assert.match(html, /baass-v4/);
 });
 
 test('réglages : volume par défaut entre 0 et 1', () => {

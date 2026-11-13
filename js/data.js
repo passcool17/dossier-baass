@@ -1,6 +1,6 @@
 /** Données du jeu. Les citations des preuves sont des extraits mot pour mot du document. */
 
-export const VERSION = 'baass-v3';
+export const VERSION = 'baass-v4';
 export const SAVE_KEY = 'baass.dossier.v1';
 export const SETTINGS_KEY = 'baass.dossier.settings.v1';
 

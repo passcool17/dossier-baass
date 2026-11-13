@@ -344,10 +344,19 @@ h1, h2, h3 {
   padding: 0.35rem;
   z-index: 2;
 }
-.board-a11y button {
+.board-host:not(.fallback) .board-a11y button,
+.board-host:not(.fallback) .board-a11y button.loc,
+.board-host:not(.fallback) .board-a11y button.reachable,
+.board-host:not(.fallback) .board-a11y button.here,
+.board-host:not(.fallback) .board-a11y button.closed {
+  appearance: none;
+  -webkit-appearance: none;
   background: transparent;
+  background-color: transparent;
   box-shadow: none;
   border: 2px solid transparent;
+  filter: none;
+  opacity: 1;
   min-height: 0;
   min-width: 0;
   padding: 0;
@@ -357,6 +366,12 @@ h1, h2, h3 {
 .board-a11y button:focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: -2px;
+}
+/* Panneau d’événement / modale : le calque a11y (z-index 2, au-dessus du canvas)
+   ne doit ni peindre ni recevoir de toucher. */
+.board-host.locked .board-a11y {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Secours si Phaser ne charge pas : tuiles illustrées en CSS */
@@ -722,7 +737,16 @@ dialog.sheet::backdrop { background: rgba(8, 6, 5, 0.78); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Durées quasi nulles plutôt que `animation: none` sur * :
+     la règle courte faisait peindre un rectangle blanc sur les boutons
+     .board-a11y (feuille de style UA) et coupait le bandeau FICTION. */
+  *:not(canvas):not(.board-a11y):not(.board-a11y *),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .sr-only {

@@ -50,6 +50,7 @@ import {
   hideEventPanel,
   isBoardReady,
 } from './board.js';
+import { isPlayInputLocked, canDispatchPlayAction, applyPlayInputLock } from './ui-lock.js';
 
 let root;
 let state = null;
@@ -191,8 +192,9 @@ export function boot(el) {
   window.addEventListener('keydown', onKey);
   render();
   probeArt().then(() => {
-    if (screen === 'play') syncPhaser();
-    else if (screen === 'home' || screen === 'won' || screen === 'lost') render();
+    // Re-rendre aussi l’écran play : le bandeau d’équipe est en DOM
+    // (portraits WebP). syncPhaser() seul laissait les initiales.
+    render();
   });
   prefetchPhaser();
 }
@@ -241,6 +243,7 @@ function startGame(diff, tutorial = false) {
 
 function act(action, opts = {}) {
   if (!state || state.phase !== 'playing') return;
+  if (!canDispatchPlayAction(modal, action)) return;
   const beforeBurns = state.investigators.filter((i) => i.burned).map((i) => i.id).join();
   const secBefore = state.secrecy;
   const susBefore = Object.fromEntries(state.investigators.map((i) => [i.id, i.suspicion]));
@@ -406,10 +409,6 @@ function mountOrSyncBoard() {
       fillFallbackTiles(host);
     }
   });
-}
-
-function syncPhaser() {
-  if (isBoardReady()) updateBoard(boardModel());
 }
 
 function fillFallbackTiles(host) {
@@ -606,6 +605,7 @@ function viewPlay() {
     });
   }
   if (tutorialHint >= 0 && s.tutorial) wrap.append(tutorialBox());
+  applyPlayInputLock(wrap, modal);
   return wrap;
 }
 
@@ -747,6 +747,7 @@ function updatePlayChrome(wrap) {
       if (state && state.eventPending && !modal) onDrawEvent();
     });
   }
+  applyPlayInputLock(wrap, modal);
 }
 
 function tutorialBox() {
@@ -783,6 +784,7 @@ function tutorialBox() {
 
 function onTapLocation(id) {
   if (!state || state.phase !== 'playing') return;
+  if (isPlayInputLocked(modal)) return;
   const inv = investigator(state, selectedId);
   if (!inv || inv.burned) return;
   if (inv.locationId === id) {
@@ -801,6 +803,7 @@ function onTapLocation(id) {
 }
 
 function onMoveAsk() {
+  if (isPlayInputLocked(modal)) return;
   const inv = investigator(state, selectedId);
   const dests = legal().filter((a) => a.type === 'move' && a.who === inv.id);
   if (dests.length === 1) {
@@ -813,6 +816,7 @@ function onMoveAsk() {
 }
 
 function onCollectAsk() {
+  if (isPlayInputLocked(modal)) return;
   const inv = investigator(state, selectedId);
   const opts = legal().filter((a) => a.type === 'collect' && a.who === inv.id);
   if (!opts.length) return;
@@ -871,6 +875,7 @@ function closePhaserEvent() {
 }
 
 function onEndTurn() {
+  if (isPlayInputLocked(modal)) return;
   act({ type: 'endTurn' });
   if (state && state.eventPending && state.phase === 'playing') {
     onDrawEvent();

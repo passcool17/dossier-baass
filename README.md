@@ -15,7 +15,7 @@ npm run serve   # http://localhost:8894
 npm run vendor  # régénère vendor/ depuis node_modules (licences incluses)
 ```
 
-- HTML, CSS et modules JS, sans étape de build ; bibliothèques vendues dans `vendor/` (Phaser, plugins rex Flip et TextTyping, GSAP, Howler, lottie-web) — pas de CDN. PWA installable (Samsung S20 FE visé, 412×915 en premier). Cache `baass-v3`.
+- HTML, CSS et modules JS, sans étape de build ; bibliothèques vendues dans `vendor/` (Phaser, plugins rex Flip et TextTyping, GSAP, Howler, lottie-web) — pas de CDN. PWA installable (Samsung S20 FE visé, 412×915 en premier). Cache `baass-v4`.
 - Les cartes preuve citent le document **mot pour mot**, avec le numéro de page. Codes de caviardage (`1843(a)…`) et « AAP Person N » conservés tels quels.
 - Mécaniques inspirées de *Black Orchestra* (Philip duBarry, Game Salute) — **aucune affiliation**, aucun texte ni thème repris.
 
