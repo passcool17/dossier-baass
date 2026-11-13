@@ -1,0 +1,33 @@
+{
+  "files": [
+    "card-frame.webp",
+    "desk.webp",
+    "icon-dice.svg",
+    "icon-evidence.svg",
+    "icon-move.svg",
+    "icon-rest.svg",
+    "icon-search.svg",
+    "icon-secrecy.svg",
+    "icon-suspicion.svg",
+    "inv-emile.webp",
+    "inv-lea.webp",
+    "inv-marc-olivier.webp",
+    "inv-sofia.webp",
+    "loc-archives.webp",
+    "loc-campus.webp",
+    "loc-colares.webp",
+    "loc-dia.webp",
+    "loc-field.webp",
+    "loc-labs.webp",
+    "loc-northern.webp",
+    "loc-roswell.webp",
+    "paper.webp",
+    "stamp-caviarde.webp",
+    "stamp-classifie.webp",
+    "stamp-classified.webp",
+    "stamp-pas-preuve.webp",
+    "stamp-plan-not-proof.webp",
+    "stamp-plan.webp",
+    "stamp-redacted.webp"
+  ]
+}

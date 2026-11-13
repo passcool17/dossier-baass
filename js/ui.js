@@ -28,18 +28,40 @@ import {
   summarize,
 } from './engine.js';
 import { clearGame, loadGame, loadSettings, recordResult, saveGame, saveSettings } from './save.js';
-import { setMuted, sfx, unlock } from './audio.js';
-
-const BOARD_ORDER = ['campus', 'dia', 'labs', 'archives', 'field', 'northern', 'roswell', 'colares'];
+import {
+  setMuted,
+  setVolume,
+  getVolume,
+  sfx,
+  unlock,
+  pauseAudioForBackground,
+} from './audio.js';
+import { probeArt, portraitElement, artStatus, artUrl } from './art.js';
+import { prefetchPhaser } from './vendor-load.js';
+import { slideIn, pulse, shake, slamStamp, rollDice, prefersReducedMotion } from './fx.js';
+import {
+  BOARD_ORDER,
+  mountBoard,
+  updateBoard,
+  unmountBoard,
+  destroyBoard,
+  playCardFlip,
+  showEventPanel,
+  hideEventPanel,
+  isBoardReady,
+} from './board.js';
 
 let root;
 let state = null;
 let settings;
 let screen = 'home'; // home | difficulty | play | rules | credits | won | lost
 let selectedId = 'lea';
-let modal = null; // { type, ... }
+let modal = null;
 let tutorialHint = 0;
 let liveMsg = '';
+let playShell = null;
+let prevSecrecy = null;
+let prevSuspicion = {};
 
 function $(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);
@@ -71,28 +93,6 @@ function say(msg) {
   liveMsg = msg;
 }
 
-function faceSvg(inv, size = 36) {
-  const i = investigatorById(inv.id || inv);
-  const colors = { lea: '#3d5a3a', marc: '#2c4a6e', sofia: '#7a4a1e', emile: '#5a3a5a' };
-  const hair = { lea: '#1f1a14', marc: '#3a2a18', sofia: '#1a120c', emile: '#c8bfab' };
-  const c = colors[i.id];
-  const h = hair[i.id];
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 36 36');
-  svg.setAttribute('width', String(size));
-  svg.setAttribute('height', String(size));
-  svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = `
-    <circle cx="18" cy="18" r="17" fill="${c}"/>
-    <circle cx="18" cy="20" r="10" fill="#f0d4b8"/>
-    <ellipse cx="18" cy="10" rx="11" ry="7" fill="${h}"/>
-    <circle cx="14" cy="20" r="1.4" fill="#1a1612"/>
-    <circle cx="22" cy="20" r="1.4" fill="#1a1612"/>
-    <path d="M14 25 q4 3 8 0" fill="none" stroke="#1a1612" stroke-width="1.2" stroke-linecap="round"/>
-  `;
-  return svg;
-}
-
 function initial(id) {
   return investigatorById(id).name[0];
 }
@@ -103,6 +103,40 @@ function pct(n) {
 
 function parseDebug() {
   return new URLSearchParams(location.search);
+}
+
+function stampImg(key, cls = 'stamp-img') {
+  const url = artUrl('extras', key);
+  if (!url) return null;
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = '';
+  img.className = cls;
+  img.decoding = 'async';
+  return img;
+}
+
+function iconImg(key) {
+  const url = artUrl('extras', key);
+  if (!url) return null;
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = '';
+  img.className = 'btn-icon';
+  img.decoding = 'async';
+  return img;
+}
+
+function speakerSvg(on) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  if (on) {
+    svg.innerHTML = '<path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM16 6.1A7.9 7.9 0 0 1 21 12a7.9 7.9 0 0 1-5 5.9"/>';
+  } else {
+    svg.innerHTML = '<path d="M3 10v4h4l5 5V5L7 10H3zm15.5.1 1.4-1.4 1.4 1.4 1.4-1.4 1.4 1.4-1.4 1.4 1.4 1.4-1.4 1.4-1.4-1.4-1.4 1.4-1.4-1.4 1.4-1.4-1.4-1.4z"/>';
+  }
+  return svg;
 }
 
 export function boot(el) {
@@ -128,16 +162,22 @@ export function boot(el) {
     selectedId = 'lea';
     screen = 'play';
     modal = { type: 'disclose-ask' };
+  } else if (debug === 'play' || debug === 'card') {
+    state = midGame('normal', 55);
+    selectedId = 'lea';
+    screen = 'play';
+    if (debug === 'card') modal = { type: 'evidence', id: 'area-control' };
   } else if (saved && saved.phase === 'playing' && !debug) {
     state = saved;
     selectedId = (state.investigators.find((i) => !i.burned) || state.investigators[0]).id;
     screen = 'play';
-    if (state.eventPending) modal = null; // le rendu proposera de tirer
+    if (state.eventPending) modal = null;
   } else {
     screen = 'home';
   }
 
   setMuted(settings.muted);
+  if (typeof settings.volume === 'number') setVolume(settings.volume);
   document.addEventListener(
     'pointerdown',
     () => {
@@ -145,8 +185,16 @@ export function boot(el) {
     },
     { once: true },
   );
+  document.addEventListener('visibilitychange', () => {
+    pauseAudioForBackground(document.hidden);
+  });
   window.addEventListener('keydown', onKey);
   render();
+  probeArt().then(() => {
+    if (screen === 'play') syncPhaser();
+    else if (screen === 'home' || screen === 'won' || screen === 'lost') render();
+  });
+  prefetchPhaser();
 }
 
 function midGame(diff, seed) {
@@ -162,7 +210,8 @@ function midGame(diff, seed) {
 }
 
 function onKey(e) {
-  if (e.key === 'Escape' && modal && modal.type !== 'event' && modal.dismissable !== false) {
+  if (e.key === 'Escape' && modal && modal.type !== 'event' && modal.type !== 'event-phaser' && modal.dismissable !== false) {
+    hideEventPanel();
     modal = null;
     render();
   }
@@ -171,6 +220,7 @@ function onKey(e) {
 function goHome() {
   screen = 'home';
   modal = null;
+  hideEventPanel();
   render();
 }
 
@@ -184,17 +234,22 @@ function startGame(diff, tutorial = false) {
   screen = 'play';
   tutorialHint = tutorial ? 0 : -1;
   modal = tutorial ? { type: 'tutorial' } : null;
+  prevSecrecy = state.secrecy;
   persist();
   render();
 }
 
-function act(action, opts) {
+function act(action, opts = {}) {
   if (!state || state.phase !== 'playing') return;
   const beforeBurns = state.investigators.filter((i) => i.burned).map((i) => i.id).join();
-  state = applyAction(state, action, opts);
+  const secBefore = state.secrecy;
+  const susBefore = Object.fromEntries(state.investigators.map((i) => [i.id, i.suspicion]));
+  state = applyAction(state, action, opts.force || opts);
   persist();
   const afterBurns = state.investigators.filter((i) => i.burned).map((i) => i.id).join();
   if (afterBurns !== beforeBurns) sfx.burn();
+  prevSecrecy = secBefore;
+  prevSuspicion = susBefore;
   if (state.phase === 'won') {
     recordResult(state.difficulty, state);
     screen = 'won';
@@ -206,7 +261,7 @@ function act(action, opts) {
     modal = { type: 'lost-event', event: state.lastEvent };
     sfx.lose();
   }
-  render();
+  if (!opts.silent) render();
 }
 
 function legal() {
@@ -224,6 +279,20 @@ function can(type, extra = {}) {
 }
 
 function render() {
+  const staying = screen === 'play' && playShell && root.contains(playShell);
+  if (!staying && playShell) {
+    unmountBoard();
+    playShell = null;
+  }
+
+  if (staying) {
+    updatePlayChrome(playShell);
+    afterPaintFx();
+    mountOrSyncBoard();
+    placeModal();
+    return;
+  }
+
   root.replaceChildren();
   root.append($('div', { class: 'orient' }, $('p', {}, 'Tourne ton téléphone en mode portrait pour jouer.')));
   root.append($('div', { class: 'status-live', role: 'status', 'aria-live': 'polite' }, liveMsg));
@@ -234,23 +303,128 @@ function render() {
   else if (screen === 'credits') root.append(viewCredits());
   else if (screen === 'won') root.append(viewEnd(true));
   else if (screen === 'lost') root.append(viewEnd(false));
-  else root.append(viewPlay());
+  else {
+    playShell = viewPlay();
+    root.append(playShell);
+    mountOrSyncBoard();
+  }
 
-  if (modal) {
-    const d = renderModal();
-    if (d) {
-      root.append(d);
-      if (typeof d.showModal === 'function' && !d.open) {
-        try {
-          d.showModal();
-        } catch {
-          /* already open */
-        }
+  afterPaintFx();
+  placeModal();
+}
+
+function afterPaintFx() {
+  if (screen === 'play' && state) {
+    if (prevSecrecy != null && state.secrecy > prevSecrecy) {
+      const meter = root.querySelector('.meter');
+      pulse(meter);
+    }
+    for (const inv of state.investigators || []) {
+      if (prevSuspicion[inv.id] != null && inv.suspicion > prevSuspicion[inv.id]) {
+        const el = root.querySelector(`.inv[data-inv="${inv.id}"] .dots`);
+        shake(el);
       }
-      const focusable = d.querySelector('button:not([disabled]), [href]');
-      if (focusable) focusable.focus();
+    }
+    prevSecrecy = state.secrecy;
+    prevSuspicion = Object.fromEntries(state.investigators.map((i) => [i.id, i.suspicion]));
+  }
+  if (screen === 'won' || screen === 'lost') {
+    const st = root.querySelector('.end-stamp, .home-mark .stamp-ring');
+    if (st) {
+      slamStamp(st);
+      sfx.stamp();
     }
   }
+  if (screen === 'home') {
+    root.querySelectorAll('.stamp-row .stamp-img, .stamp-row .stamp').forEach((s, i) => {
+      setTimeout(() => slamStamp(s), 80 + i * 120);
+    });
+  }
+}
+
+function placeModal() {
+  root.querySelectorAll('dialog.sheet').forEach((d) => d.remove());
+  if (!modal || modal.type === 'tutorial' || modal.type === 'event-phaser') return;
+  const d = renderModal();
+  if (!d) return;
+  root.append(d);
+  if (typeof d.showModal === 'function' && !d.open) {
+    try {
+      d.showModal();
+    } catch {
+      /* already open */
+    }
+  }
+  const card = d.querySelector('.card, .panel');
+  if (card) slideIn(card);
+  const stamps = d.querySelectorAll('.card-stamps .stamp');
+  stamps.forEach((s, i) => setTimeout(() => slamStamp(s), 80 + i * 90));
+  const dice = d.querySelectorAll('.die');
+  if (dice.length) rollDice(dice);
+  const focusable = d.querySelector('button:not([disabled]), [href]');
+  if (focusable) focusable.focus();
+}
+
+function boardModel() {
+  if (!state) return { locations: {}, tokens: [] };
+  const inv = investigator(state, selectedId) || state.investigators[0];
+  const movesTo = new Set(legal().filter((a) => a.type === 'move' && a.who === inv.id).map((a) => a.to));
+  const locations = {};
+  for (const id of BOARD_ORDER) {
+    const here = state.investigators.filter((i) => !i.burned && i.locationId === id);
+    locations[id] = {
+      name: locationById(id).name,
+      left: availableAt(state, id).length,
+      closed: (state.closed[id] || 0) > 0,
+      reachable: movesTo.has(id),
+      here: here.some((i) => i.id === selectedId),
+    };
+  }
+  return {
+    locations,
+    tokens: state.investigators.map((i) => ({
+      id: i.id,
+      locationId: i.locationId,
+      burned: i.burned,
+      selected: i.id === selectedId,
+    })),
+  };
+}
+
+function mountOrSyncBoard() {
+  const host = playShell?.querySelector('#board-host');
+  if (!host || screen !== 'play') return;
+  const model = boardModel();
+  if (isBoardReady()) {
+    updateBoard(model);
+    return;
+  }
+  queueMicrotask(async () => {
+    const ok = await mountBoard(host, model, { onTap: onTapLocation });
+    if (!ok) {
+      host.classList.add('fallback');
+      fillFallbackTiles(host);
+    }
+  });
+}
+
+function syncPhaser() {
+  if (isBoardReady()) updateBoard(boardModel());
+}
+
+function fillFallbackTiles(host) {
+  host.querySelectorAll('.board-a11y button').forEach((btn) => {
+    const id = btn.dataset.loc;
+    if (!id || btn.querySelector('.loc-name')) return;
+    const loc = locationById(id);
+    const art = document.createElement('div');
+    art.className = 'loc-art';
+    const name = document.createElement('div');
+    name.className = 'loc-name';
+    name.textContent = loc.name;
+    btn.prepend(name);
+    btn.prepend(art);
+  });
 }
 
 function viewHome() {
@@ -259,6 +433,10 @@ function viewHome() {
   const best = settings.best || {};
   return $('div', { class: 'home' },
     $('div', { class: 'home-mark' },
+      $('div', { class: 'stamp-row', 'aria-hidden': 'true' },
+        stampImg('stamp-classifie') || $('span', { class: 'stamp' }, 'Classifié'),
+        stampImg('stamp-plan') || $('span', { class: 'stamp gold' }, 'Plan, pas preuve'),
+      ),
       $('div', { class: 'stamp-ring' }, 'Plan 2008 · Fiction de jeu'),
       $('h1', {}, 'Dossier BAASS'),
       $('p', { class: 'tag' }, 'Une enquête en solo'),
@@ -285,6 +463,7 @@ function viewHome() {
           .join(' · '),
       )
       : $('p', { class: 'fine' }, 'Partie visée : environ 15 minutes. Téléphone en portrait.'),
+    $('p', { class: 'contract-line' }, `${DOCUMENT_META.contract} · ${DOCUMENT_META.date}`),
   );
 }
 
@@ -344,7 +523,8 @@ function viewCredits() {
     $('p', {}, DISCLAIMER),
     $('p', {}, 'Les enquêteurs (Léa Archambault, Marc-Olivier Tremblay, Sofia Ramirez, Émile Gagnon) sont des personnages entièrement fictifs, dessinés en caricature. On ne représente personne de réel, et on ne remplace aucun nom caviardé.'),
     $('p', {}, 'Les cartes événement, le plateau, le soupçon et la tentative de divulgation sont une fiction de jeu.'),
-    $('p', {}, 'Graphismes procéduraux (CSS et SVG), aucune ressource externe. Jeu web pour téléphone, français du Québec.'),
+    $('p', {}, 'Graphismes : textures et illustrations de lieux procédurales (canvas, CSS, SVG, WebP originaux). Les portraits et illustrations définitifs, s’ils sont présents dans assets/art-incoming/, viennent d’Atelier assets ; sinon des placeholders (silhouettes d’initiales, scènes géométriques) sont utilisés. Sons originaux synthétisés (Python + ffmpeg), joués avec Howler.js (MIT). Animations : Phaser 3 (MIT) avec les plugins rex Flip et TextTyping (MIT, rexrainbow), GSAP (licence standard « no charge »), et une petite animation Lottie originale (lecteur lottie-web, MIT). Les exemples officiels Phaser (https://github.com/phaserjs/examples, MIT) ont servi de référence pour les particules, lumières et transitions : aucun de leurs fichiers n’a été recopié.'),
+    $('p', {}, 'Jeu web pour téléphone, français du Québec.'),
     $('button', { class: 'primary', type: 'button', onclick: goHome }, 'Retour'),
   );
 }
@@ -359,7 +539,7 @@ function viewEnd(won) {
   const sum = state ? summarize(state) : {};
   return $('div', { class: 'end-screen' },
     $('div', { class: 'home-mark' },
-      $('div', { class: 'stamp-ring' }, won ? 'Divulgation réussie' : 'Dossier fermé'),
+      $('div', { class: 'stamp-ring end-stamp' }, won ? 'Divulgation réussie' : 'Dossier fermé'),
       $('h1', {}, won ? 'Victoire' : 'Défaite'),
     ),
     !won ? $('p', {}, loseLabel(state?.loseReason)) : $('p', {}, 'Le test de divulgation a réussi. C’est une victoire dans la fiction du jeu, pas une affirmation sur le monde réel.'),
@@ -373,84 +553,99 @@ function viewEnd(won) {
   );
 }
 
+function toggleMute() {
+  settings = saveSettings({ ...settings, muted: !settings.muted });
+  setMuted(settings.muted);
+  if (!settings.muted) unlock();
+  render();
+}
+
 function viewPlay() {
   const s = state;
-  const period = PERIODS[s.period] || PERIODS[0];
-  const mute = settings.muted;
   const wrap = $('div', { class: 'play' });
-
-  wrap.append(
-    $('header', { class: 'hud' },
-      $('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Menu', onclick: () => { modal = { type: 'menu' }; render(); } }, '☰'),
-      $('div', { class: 'hud-center' },
-        $('div', { class: 'title' }, 'Dossier BAASS'),
-        $('div', { class: 'hud-meta' },
-          $('span', {}, `Tour ${s.turn}`),
-          $('span', {}, period.name),
-          $('span', {}, DIFFICULTIES[s.difficulty].label),
-        ),
-      ),
-      $('button', {
-        class: 'icon-btn',
-        type: 'button',
-        'aria-label': mute ? 'Activer le son' : 'Couper le son',
-        'aria-pressed': mute ? 'true' : 'false',
-        onclick: () => {
-          settings = saveSettings({ ...settings, muted: !settings.muted });
-          setMuted(settings.muted);
-          if (!settings.muted) unlock();
-          render();
-        },
-      }, mute ? '🔇' : '🔊'),
-    ),
-  );
-
-  const ratio = Math.min(1, s.secrecy / s.maxSecrecy);
-  wrap.append(
-    $('div', { class: 'secrecy' },
-      $('div', { class: 'secrecy-label' },
-        $('span', {}, 'Niveau de secret'),
-        $('span', {}, `${s.secrecy} / ${s.maxSecrecy}`),
-      ),
-      $('div', { class: 'meter', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(s.maxSecrecy), 'aria-valuenow': String(s.secrecy), 'aria-label': 'Niveau de secret' },
-        $('span', { style: { width: `${ratio * 100}%` } }),
-      ),
-    ),
-  );
+  wrap.append(buildHud(s));
+  wrap.append(buildSecrecy(s));
 
   const inv = investigator(s, selectedId) || s.investigators[0];
   const movesTo = new Set(legal().filter((a) => a.type === 'move' && a.who === inv.id).map((a) => a.to));
 
-  const board = $('div', { class: 'board', role: 'group', 'aria-label': 'Plateau' });
+  const boardHost = $('div', { class: 'board-host', id: 'board-host' });
+  const a11y = $('div', { class: 'board-a11y', role: 'group', 'aria-label': 'Plateau' });
   for (const id of BOARD_ORDER) {
     const loc = locationById(id);
     const here = s.investigators.filter((i) => !i.burned && i.locationId === id);
     const left = availableAt(s, id).length;
     const closed = (s.closed[id] || 0) > 0;
     const classes = ['loc', movesTo.has(id) ? 'reachable' : '', here.some((i) => i.id === selectedId) ? 'here' : '', closed ? 'closed' : ''].filter(Boolean).join(' ');
-    board.append(
+    const who = here.map((i) => investigatorById(i.id).name).join(', ');
+    a11y.append(
       $('button', {
         class: classes,
         type: 'button',
-        'aria-label': `${loc.name}. ${left} preuve${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}.${closed ? ' Fermé.' : ''}`,
+        'data-loc': id,
+        'aria-label': `${loc.name}. ${left} preuve${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}.${closed ? ' Fermé.' : ''}${who ? ` Présents : ${who}.` : ''}`,
         onclick: () => onTapLocation(id),
-      },
-        $('div', { class: 'loc-name' }, loc.name),
-        $('div', { class: 'loc-info' }, closed ? 'Fermé ce tour' : `${left} preuve${left === 1 ? '' : 's'}`),
-        $('div', { class: 'tokens' },
-          ...here.map((i) =>
-            $('span', {
-              class: 'token',
-              style: { background: investigatorById(i.id).color },
-              title: investigatorById(i.id).name,
-            }, initial(i.id)),
-          ),
-        ),
-      ),
+      }),
     );
   }
-  wrap.append(board);
+  boardHost.append(a11y);
+  const dock = $('div', { class: 'event-dock', id: 'event-dock' },
+    $('p', { class: 'sr-only', id: 'event-live' }),
+    $('button', { class: 'primary', type: 'button', id: 'event-continue', onclick: () => closePhaserEvent() }, 'Continuer'),
+  );
+  boardHost.append(dock);
+  wrap.append(boardHost);
 
+  wrap.append(buildTeam(s));
+  wrap.append(buildActions(s, inv));
+  wrap.append(buildFooter(s));
+
+  if (s.eventPending && s.phase === 'playing' && !modal) {
+    queueMicrotask(() => {
+      if (state && state.eventPending && !modal) onDrawEvent();
+    });
+  }
+  if (tutorialHint >= 0 && s.tutorial) wrap.append(tutorialBox());
+  return wrap;
+}
+
+function buildHud(s) {
+  const period = PERIODS[s.period] || PERIODS[0];
+  const mute = settings.muted;
+  return $('header', { class: 'hud' },
+    $('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Menu', onclick: () => { modal = { type: 'menu' }; render(); } }, '☰'),
+    $('div', { class: 'hud-center' },
+      $('div', { class: 'title' }, 'Dossier BAASS'),
+      $('div', { class: 'hud-meta' },
+        $('span', {}, `Tour ${s.turn}`),
+        $('span', {}, period.name),
+        $('span', {}, DIFFICULTIES[s.difficulty].label),
+      ),
+    ),
+    $('button', {
+      class: 'icon-btn',
+      type: 'button',
+      'aria-label': mute ? 'Activer le son' : 'Couper le son',
+      'aria-pressed': mute ? 'true' : 'false',
+      onclick: () => toggleMute(),
+    }, speakerSvg(!mute)),
+  );
+}
+
+function buildSecrecy(s) {
+  const ratio = Math.min(1, s.secrecy / s.maxSecrecy);
+  return $('div', { class: 'secrecy' },
+    $('div', { class: 'secrecy-label' },
+      $('span', {}, 'Niveau de secret'),
+      $('span', {}, `${s.secrecy} / ${s.maxSecrecy}`),
+    ),
+    $('div', { class: 'meter', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(s.maxSecrecy), 'aria-valuenow': String(s.secrecy), 'aria-label': 'Niveau de secret' },
+      $('span', { style: { width: `${ratio * 100}%` } }),
+    ),
+  );
+}
+
+function buildTeam(s) {
   const team = $('div', { class: 'team', role: 'tablist', 'aria-label': 'Enquêteurs' });
   for (const i of s.investigators) {
     const meta = investigatorById(i.id);
@@ -458,16 +653,19 @@ function viewPlay() {
     for (let n = 0; n < SUSPICION_MAX; n++) {
       dots.push($('span', { class: `dot ${n < i.suspicion ? (i.suspicion >= 4 ? 'hot on' : 'on') : ''}` }));
     }
+    const face = $('div', { class: 'inv-face' });
+    face.append(portraitElement(i.id, 44));
     team.append(
       $('button', {
         class: `inv ${selectedId === i.id ? 'selected' : ''} ${i.burned ? 'burned' : ''}`,
         type: 'button',
         role: 'tab',
+        'data-inv': i.id,
         'aria-selected': selectedId === i.id ? 'true' : 'false',
         'aria-label': `${meta.name}, ${meta.role}. Soupçon ${i.suspicion} sur ${SUSPICION_MAX}.${i.burned ? ' Brûlé.' : ''} ${i.actionsLeft} action.`,
         onclick: () => { selectedId = i.id; sfx.tap(); render(); },
       },
-        $('div', { class: 'inv-face' }, faceSvg(i)),
+        face,
         $('div', { class: 'inv-body' },
           $('div', { class: 'inv-name' }, meta.name.split(' ')[0]),
           $('div', { class: 'inv-role' }, i.burned ? 'Brûlé' : meta.role),
@@ -477,55 +675,78 @@ function viewPlay() {
       ),
     );
   }
-  wrap.append(team);
+  return team;
+}
 
+function buildActions(s, inv) {
   const canMove = can('move', { who: inv.id });
   const canCollect = legal().some((a) => a.type === 'collect' && a.who === inv.id);
   const canRest = can('rest', { who: inv.id });
   const canAbility = legal().some((a) => a.type === 'ability');
-  wrap.append(
-    $('div', { class: 'actions' },
-      $('button', { type: 'button', disabled: !canMove || inv.burned, onclick: () => onMoveAsk() }, 'Déplacer'),
-      $('button', { type: 'button', disabled: !canCollect, onclick: () => onCollectAsk() }, 'Collecter'),
-      $('button', { type: 'button', disabled: !canRest, onclick: () => { sfx.move(); act({ type: 'rest', who: inv.id }); } }, 'Se reposer'),
-      $('button', { type: 'button', disabled: !canAbility, onclick: () => { modal = { type: 'ability' }; render(); } }, 'Pouvoir d’Émile'),
-    ),
+  return $('div', { class: 'actions' },
+    $('button', { type: 'button', disabled: !canMove || inv.burned, onclick: () => onMoveAsk() }, 'Déplacer'),
+    $('button', { type: 'button', disabled: !canCollect, onclick: () => onCollectAsk() }, 'Collecter'),
+    $('button', { type: 'button', disabled: !canRest, onclick: () => { sfx.move(); act({ type: 'rest', who: inv.id }); } }, 'Se reposer'),
+    $('button', { type: 'button', disabled: !canAbility, onclick: () => { modal = { type: 'ability' }; render(); } }, 'Pouvoir d’Émile'),
   );
+}
 
+function buildFooter(s) {
   const nCol = collectedEvidence(s).length;
   const p = nCol ? disclosureProbability(s) : 0;
   const canDisc = can('disclose');
-  wrap.append(
-    $('div', { class: 'footer-bar' },
-      $('button', { class: 'ghost', type: 'button', onclick: () => { modal = { type: 'dossier' }; render(); } },
-        'Dossier',
-        $('span', { class: 'sub' }, `${nCol} / ${EVIDENCE.length}`),
-      ),
-      $('button', { class: 'danger', type: 'button', disabled: !canDisc, onclick: () => { modal = { type: 'disclose-ask' }; render(); } },
-        'Divulguer',
-        $('span', { class: 'sub' }, nCol ? `environ ${pct(p)}` : 'aucune preuve'),
-      ),
-      $('button', { class: 'primary', type: 'button', onclick: () => onEndTurn() },
-        'Fin du tour',
-        $('span', { class: 'sub' }, `${remainingActions(s)} action${remainingActions(s) > 1 ? 's' : ''} restante${remainingActions(s) > 1 ? 's' : ''}`),
-      ),
+  return $('div', { class: 'footer-bar' },
+    $('button', { class: 'ghost', type: 'button', onclick: () => { modal = { type: 'dossier' }; render(); } },
+      'Dossier',
+      $('span', { class: 'sub' }, `${nCol} / ${EVIDENCE.length}`),
+    ),
+    $('button', { class: 'danger', type: 'button', disabled: !canDisc, onclick: () => { modal = { type: 'disclose-ask' }; render(); } },
+      'Divulguer',
+      $('span', { class: 'sub' }, nCol ? `environ ${pct(p)}` : 'aucune preuve'),
+    ),
+    $('button', { class: 'primary', type: 'button', onclick: () => onEndTurn() },
+      'Fin du tour',
+      $('span', { class: 'sub' }, `${remainingActions(s)} action${remainingActions(s) > 1 ? 's' : ''} restante${remainingActions(s) > 1 ? 's' : ''}`),
     ),
   );
+}
+
+function updatePlayChrome(wrap) {
+  const s = state;
+  if (!s) return;
+  const inv = investigator(s, selectedId) || s.investigators[0];
+  const hud = wrap.querySelector('.hud');
+  const sec = wrap.querySelector('.secrecy');
+  const team = wrap.querySelector('.team');
+  const actions = wrap.querySelector('.actions');
+  const footer = wrap.querySelector('.footer-bar');
+  const tut = wrap.querySelector('.tut-overlay');
+  hud?.replaceWith(buildHud(s));
+  sec?.replaceWith(buildSecrecy(s));
+  team?.replaceWith(buildTeam(s));
+  actions?.replaceWith(buildActions(s, inv));
+  footer?.replaceWith(buildFooter(s));
+  if (tut) tut.remove();
+  if (tutorialHint >= 0 && s.tutorial) wrap.append(tutorialBox());
+
+  const movesTo = new Set(legal().filter((a) => a.type === 'move' && a.who === inv.id).map((a) => a.to));
+  wrap.querySelectorAll('.board-a11y button').forEach((btn) => {
+    const id = btn.dataset.loc;
+    if (!id) return;
+    const here = s.investigators.filter((i) => !i.burned && i.locationId === id);
+    const left = availableAt(s, id).length;
+    const closed = (s.closed[id] || 0) > 0;
+    btn.className = ['loc', movesTo.has(id) ? 'reachable' : '', here.some((i) => i.id === selectedId) ? 'here' : '', closed ? 'closed' : ''].filter(Boolean).join(' ');
+    const who = here.map((i) => investigatorById(i.id).name).join(', ');
+    const loc = locationById(id);
+    btn.setAttribute('aria-label', `${loc.name}. ${left} preuve${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}.${closed ? ' Fermé.' : ''}${who ? ` Présents : ${who}.` : ''}`);
+  });
 
   if (s.eventPending && s.phase === 'playing' && !modal) {
-    // Auto-propose le tirage
     queueMicrotask(() => {
-      if (state && state.eventPending && !modal) {
-        onDrawEvent();
-      }
+      if (state && state.eventPending && !modal) onDrawEvent();
     });
   }
-
-  if (tutorialHint >= 0 && s.tutorial) {
-    wrap.append(tutorialBox());
-  }
-
-  return wrap;
 }
 
 function tutorialBox() {
@@ -603,22 +824,50 @@ function onCollectAsk() {
   render();
 }
 
-function doCollect(evidenceId) {
+async function doCollect(evidenceId) {
   sfx.collect();
-  act({ type: 'collect', who: selectedId, evidenceId });
-  if (state.phase === 'playing') {
-    modal = { type: 'evidence', id: evidenceId };
-    render();
+  sfx.card();
+  act({ type: 'collect', who: selectedId, evidenceId }, { silent: true });
+  const ev = evidenceById(evidenceId);
+  if (state.phase === 'playing' && isBoardReady() && !prefersReducedMotion()) {
+    await new Promise((res) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; res(); } };
+      playCardFlip({ title: ev.title, type: ev.type }, finish);
+      setTimeout(finish, 1600);
+    });
   }
+  if (state.phase === 'playing') modal = { type: 'evidence', id: evidenceId };
+  render();
 }
 
 function onDrawEvent() {
-  act({ type: 'drawEvent' });
+  act({ type: 'drawEvent' }, { silent: true });
   if (state.phase === 'playing') {
     sfx.event();
-    modal = { type: 'event', event: state.lastEvent };
-    render();
+    const ev = state.lastEvent;
+    say(`${ev?.title || ''}. ${ev?.text || ''}`);
+    const used = ev && isBoardReady() && showEventPanel(ev, () => closePhaserEvent());
+    if (used) {
+      modal = { type: 'event-phaser', event: ev };
+      const dock = playShell?.querySelector('#event-dock');
+      const live = playShell?.querySelector('#event-live');
+      if (live) live.textContent = `${ev.title}. ${ev.text}`;
+      if (dock) dock.classList.add('open');
+      render();
+      return;
+    }
+    modal = { type: 'event', event: ev };
   }
+  render();
+}
+
+function closePhaserEvent() {
+  hideEventPanel();
+  const dock = playShell?.querySelector('#event-dock');
+  if (dock) dock.classList.remove('open');
+  modal = null;
+  render();
 }
 
 function onEndTurn() {
@@ -640,7 +889,8 @@ function renderModal() {
   if (modal.type === 'disclose-ask') return discloseAskModal();
   if (modal.type === 'disclose-result') return discloseResultModal();
   if (modal.type === 'peek') return peekModal();
-  if (modal.type === 'tutorial') return null; // géré dans viewPlay
+  if (modal.type === 'tutorial') return null;
+  if (modal.type === 'event-phaser') return null;
   return null;
 }
 
@@ -656,13 +906,40 @@ function sheet(kind, ...kids) {
 }
 
 function menuModal() {
+  const vol = Math.round((typeof settings.volume === 'number' ? settings.volume : getVolume()) * 100);
   return sheet('',
     $('h2', {}, 'Menu'),
+    $('div', { class: 'volume-row' },
+      $('label', { for: 'baass-vol' }, 'Volume'),
+      $('input', {
+        id: 'baass-vol',
+        type: 'range',
+        min: '0',
+        max: '100',
+        value: String(vol),
+        'aria-valuemin': '0',
+        'aria-valuemax': '100',
+        'aria-valuenow': String(vol),
+        'aria-label': 'Volume du son',
+        oninput: (e) => {
+          const v = Number(e.target.value) / 100;
+          setVolume(v);
+          if (v > 0 && settings.muted) {
+            settings = saveSettings({ ...settings, muted: false, volume: v });
+            setMuted(false);
+            unlock();
+          } else {
+            settings = saveSettings({ ...settings, volume: v });
+          }
+          e.target.setAttribute('aria-valuenow', e.target.value);
+        },
+      }),
+    ),
     $('div', { class: 'card-actions' },
       $('button', { type: 'button', onclick: () => { modal = null; screen = 'rules'; render(); } }, 'Règles'),
       $('button', { type: 'button', onclick: () => { modal = null; screen = 'credits'; render(); } }, 'Crédits'),
       $('button', { type: 'button', onclick: () => { persist(); modal = null; goHome(); } }, 'Accueil (partie sauvegardée)'),
-      $('button', { class: 'danger', type: 'button', onclick: () => { if (confirm('Abandonner cette partie ?')) { clearGame(); state = null; modal = null; goHome(); } } }, 'Abandonner la partie'),
+      $('button', { class: 'danger', type: 'button', onclick: () => { if (confirm('Abandonner cette partie ?')) { clearGame(); state = null; modal = null; destroyBoard(); goHome(); } } }, 'Abandonner la partie'),
       $('button', { class: 'ghost', type: 'button', onclick: closeModal }, 'Fermer'),
     ),
   );
@@ -672,6 +949,7 @@ function eventModal(ev) {
   const event = ev || state.lastEvent;
   if (!event) return closeModal(), null;
   return sheet('fiction',
+    $('div', { class: 'card-stamps', 'aria-hidden': 'true' }, stampImg('stamp-caviarde') || $('span', { class: 'stamp' }, 'Fiction')),
     $('p', { class: 'eyebrow' }, 'Fiction — pas un fait du document'),
     $('h2', {}, event.title),
     $('p', {}, event.text),
@@ -687,6 +965,10 @@ function evidenceModal(id) {
   if (!ev) return null;
   const info = state.evidence[id];
   return sheet('evidence',
+    $('div', { class: 'card-stamps', 'aria-hidden': 'true' },
+      stampImg('stamp-classifie') || $('span', { class: 'stamp' }, 'Classifié'),
+      stampImg('stamp-plan') || $('span', { class: 'stamp gold' }, 'Plan, pas preuve'),
+    ),
     $('p', { class: 'eyebrow ok' }, ev.type === 'area' ? 'Domaine technique' : ev.type === 'project' ? 'Projet' : 'Annexe Roswell'),
     $('h2', {}, ev.title),
     $('p', { class: 'page-ref' }, `Extrait verbatim · p. ${ev.printedPage} du document (page PDF ${ev.pdfPage}) · poids ${info?.effectiveWeight ?? ev.weight}`),
@@ -765,6 +1047,7 @@ function abilityModal() {
 function peekModal() {
   const ev = EVENTS.find((e) => e.id === state.peekedEventId);
   return sheet('fiction',
+    $('div', { class: 'card-stamps', 'aria-hidden': 'true' }, stampImg('stamp-caviarde') || $('span', { class: 'stamp' }, 'Fiction')),
     $('p', { class: 'eyebrow' }, 'Fiction — aperçu'),
     $('h2', {}, ev ? ev.title : 'Paquet vide'),
     ev ? $('p', {}, ev.text) : $('p', {}, 'Il ne reste plus de cartes événement.'),
@@ -802,7 +1085,6 @@ function runDisclose() {
     recordResult(state.difficulty, state);
   }
   render();
-  // petite pause puis écran final si terminé
   if (state.phase === 'won' || state.phase === 'lost') {
     setTimeout(() => {
       if (!state) return;
@@ -822,8 +1104,8 @@ function discloseResultModal() {
     $('p', { class: 'eyebrow ' + (d.success ? 'ok' : '') }, d.success ? 'Succès' : 'Échec'),
     $('h2', {}, d.success ? 'La divulgation passe' : 'La divulgation échoue'),
     $('div', { class: 'dice' },
-      $('div', { class: 'die' }, String(d.dice.a)),
-      $('div', { class: 'die' }, String(d.dice.b)),
+      $('div', { class: 'die rolling' }, String(d.dice.a)),
+      $('div', { class: 'die rolling' }, String(d.dice.b)),
     ),
     $('p', {}, `2d6 = ${d.dice.total}, plus le bonus ${d.bonus}, font ${d.score}. Il fallait atteindre ${d.target}.`),
     d.success
@@ -839,3 +1121,6 @@ function discloseResultModal() {
   );
 }
 
+void artStatus;
+void LOCATIONS;
+void INVESTIGATORS;

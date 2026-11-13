@@ -5,6 +5,17 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "sim": "node tests/run-sim.js",
-    "serve": "python3 -m http.server 8894 --bind 0.0.0.0"
+    "serve": "python3 -m http.server 8894 --bind 0.0.0.0",
+    "vendor": "node scripts/vendor.mjs"
+  },
+  "dependencies": {
+    "gsap": "3.15.1",
+    "howler": "2.2.4",
+    "lottie-web": "5.13.0",
+    "phaser": "3.90.0",
+    "phaser3-rex-plugins": "1.80.20"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

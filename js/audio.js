@@ -1,77 +1,154 @@
-let ctx = null;
+import { loadHowler } from './vendor-load.js';
+
+let HowlRef = null;
+let HowlerRef = null;
 let unlocked = false;
 let muted = false;
+let volume = 0.75;
+let ambient = { room: null, pad: null };
+const shots = {};
+let loading = null;
+
+const SFX_FILES = {
+  move: './assets/audio/move.mp3',
+  collect: './assets/audio/collect.mp3',
+  event: './assets/audio/event.mp3',
+  dice: './assets/audio/dice.mp3',
+  win: './assets/audio/win.mp3',
+  lose: './assets/audio/lose.mp3',
+  burn: './assets/audio/burn.mp3',
+  tap: './assets/audio/tap.mp3',
+  paper: './assets/audio/paper.mp3',
+  stamp: './assets/audio/stamp.mp3',
+  type: './assets/audio/type.mp3',
+  card: './assets/audio/card.mp3',
+};
+
+function applyGain() {
+  if (!HowlerRef) return;
+  HowlerRef.mute(!!muted);
+  HowlerRef.volume(muted ? 0 : volume);
+  const amb = muted || !unlocked ? 0 : 1;
+  if (ambient.room) ambient.room.volume(0.45 * amb);
+  if (ambient.pad) ambient.pad.volume(0.28 * amb);
+}
 
 export function setMuted(v) {
   muted = !!v;
+  applyGain();
 }
 
+export function setVolume(v) {
+  volume = Math.max(0, Math.min(1, Number(v) || 0));
+  if (volume === 0) muted = true;
+  applyGain();
+}
 
-function context() {
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
-  }
-  return ctx;
+export function getVolume() {
+  return volume;
+}
+
+export function isMuted() {
+  return muted;
+}
+
+async function ensure() {
+  if (HowlRef) return true;
+  if (loading) return loading;
+  loading = (async () => {
+    try {
+      const lib = await loadHowler();
+      HowlRef = lib.Howl;
+      HowlerRef = lib.Howler;
+      if (HowlerRef) HowlerRef.autoUnlock = true;
+      for (const [k, src] of Object.entries(SFX_FILES)) {
+        shots[k] = new HowlRef({ src: [src], preload: true, volume: 1 });
+      }
+      ambient.room = new HowlRef({
+        src: ['./assets/audio/room.mp3'],
+        loop: true,
+        volume: 0.45,
+        preload: true,
+      });
+      ambient.pad = new HowlRef({
+        src: ['./assets/audio/pad.mp3'],
+        loop: true,
+        volume: 0.28,
+        preload: true,
+      });
+      applyGain();
+      return true;
+    } catch {
+      HowlRef = null;
+      return false;
+    }
+  })();
+  return loading;
+}
+
+function startAmbient() {
+  if (muted || !unlocked) return;
+  if (ambient.room && !ambient.room.playing()) ambient.room.play();
+  if (ambient.pad && !ambient.pad.playing()) ambient.pad.play();
+}
+
+function stopAmbient() {
+  if (ambient.room) ambient.room.stop();
+  if (ambient.pad) ambient.pad.stop();
 }
 
 export async function unlock() {
-  const c = context();
-  if (!c) return;
-  if (c.state === 'suspended') {
-    try {
-      await c.resume();
-    } catch {
-      /* ignore */
+  const ok = await ensure();
+  if (!ok) return;
+  try {
+    if (HowlerRef?.ctx && HowlerRef.ctx.state === 'suspended') {
+      await HowlerRef.ctx.resume();
     }
+  } catch {
+    /* ignore */
   }
-  unlocked = c.state === 'running';
+  unlocked = true;
+  applyGain();
+  startAmbient();
 }
 
-function beep(freq, dur, type = 'sine', gain = 0.06, slide = 0) {
-  const c = context();
-  if (!c || !unlocked || muted) return;
-  const t = c.currentTime;
-  const o = c.createOscillator();
-  const g = c.createGain();
-  o.type = type;
-  o.frequency.setValueAtTime(freq, t);
-  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t + dur);
-  g.gain.setValueAtTime(gain, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g);
-  g.connect(c.destination);
-  o.start(t);
-  o.stop(t + dur + 0.02);
+function playShot(name, vol = 1) {
+  if (!unlocked || muted || !shots[name]) return;
+  try {
+    shots[name].volume(vol);
+    shots[name].play();
+  } catch {
+    /* ignore */
+  }
 }
 
 export const sfx = {
-  move() {
-    beep(280, 0.08, 'triangle', 0.04);
-  },
-  collect() {
-    beep(520, 0.12, 'sine', 0.06, 80);
-    setTimeout(() => beep(780, 0.1, 'sine', 0.04), 70);
-  },
-  event() {
-    beep(160, 0.22, 'square', 0.045, -40);
-  },
-  dice() {
-    beep(200, 0.06, 'square', 0.04);
-    setTimeout(() => beep(260, 0.06, 'square', 0.04), 80);
-    setTimeout(() => beep(220, 0.08, 'square', 0.04), 160);
-  },
-  win() {
-    [440, 554, 659, 880].forEach((f, i) => setTimeout(() => beep(f, 0.28, 'sine', 0.06), i * 120));
-  },
-  lose() {
-    beep(300, 0.35, 'sawtooth', 0.04, -180);
-  },
-  burn() {
-    beep(120, 0.4, 'sawtooth', 0.05, -60);
-  },
-  tap() {
-    beep(700, 0.04, 'triangle', 0.03);
-  },
+  move() { playShot('move', 0.8); },
+  collect() { playShot('collect', 0.85); playShot('paper', 0.5); },
+  event() { playShot('event', 0.9); },
+  dice() { playShot('dice', 0.95); },
+  win() { playShot('win', 0.95); },
+  lose() { playShot('lose', 0.9); },
+  burn() { playShot('burn', 0.9); },
+  tap() { playShot('tap', 0.55); },
+  paper() { playShot('paper', 0.8); },
+  stamp() { playShot('stamp', 0.95); },
+  type() { playShot('type', 0.45); },
+  card() { playShot('card', 0.8); },
 };
+
+export function pauseAudioForBackground(hidden) {
+  if (!HowlerRef) return;
+  if (hidden) {
+    stopAmbient();
+    if (HowlerRef.ctx && HowlerRef.ctx.state === 'running') {
+      HowlerRef.ctx.suspend?.();
+    }
+  } else if (unlocked && !muted) {
+    HowlerRef.ctx?.resume?.();
+    startAmbient();
+  }
+}
+
+// Précharge sans débloquer (après premier geste, ensure est déjà appelé).
+ensure().catch(() => undefined);

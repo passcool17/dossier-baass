@@ -1,0 +1,99 @@
+Dossier BAASS — crédits des illustrations (art-incoming)
+Atelier assets · 2D & 3D    13 novembre 2026
+Palette alignée sur style.css : papier #f4ead4, encre #1a1612, olive #4a5d3e,
+or #c4a35a, tampon #8b2e2e, bureau #2a2520. Interface du jeu en français.
+
+Règles respectées : aucun individu réel (enquêteurs entièrement fictifs) ;
+aucune imagerie de la Seconde Guerre mondiale ; aucun sceau, logo ou
+emblème réel (pas de sceau DIA/DoD ni de drapeau national lisible) ;
+aucun logo de marque lisible.
+
+Les fichiers .webp et .svg ci-dessous (hors src/ et hors copies d’alias)
+pèsent 567 145 octets (553,9 Kio), sous le budget de 1,5 Mio.
+
+
+LIEUX  —  512 × 320  —  illustration gouache/encre
+Générés avec l’outil intégré GenerateImage (Grok Bot), recadrés du 16:9
+vers 8:5 puis redimensionnés (ImageMagick 7 / PIL, filtre Lanczos).
+Œuvres originales pour le jeu. Sources PNG dans src/.
+
+  loc-dia.webp            34 928 o    512×320    Bureaux DIA (bureaux gouvernementaux génériques, pas de sceau)
+  loc-labs.webp           28 762 o    512×320    Laboratoires
+  loc-archives.webp       33 250 o    512×320    Archives
+  loc-roswell.webp        44 836 o    512×320    Site de Roswell 1947 (ranch désertique, pas d’épave)
+  loc-campus.webp         51 662 o    512×320    Campus
+  loc-field.webp          43 838 o    512×320    Terrain d’engagement
+  loc-northern.webp       26 648 o    512×320    Base Northern Tier (base nordique générique, pas d’insigne)
+  loc-colares.webp        44 532 o    512×320    Île de Colares, 1977
+
+
+PORTRAITS  —  256 × 256  —  photo d’identité de dossier, trombone
+Visages : GenerateImage (Grok Bot), personnages inventés, style peint
+assorti aux lieux. Cadre manila, bordure de tirage et trombone dessinés
+à la main (PIL). PNG dans src/.
+
+  inv-lea.webp            11 422 o    256×256    Léa Archambault, archiviste
+  inv-marc-olivier.webp   10 230 o    256×256    Marc-Olivier Tremblay, physicien
+  inv-sofia.webp          12 858 o    256×256    Sofia Ramirez, enquêtrice de terrain
+  inv-emile.webp          11 886 o    256×256    Émile Gagnon, analyste
+
+
+TEXTURES ET CADRE
+
+  card-frame.webp          2 064 o    300×420    Fait main (PIL). Cadre 9-slice :
+                                                 marges identiques 40 px (haut, droite,
+                                                 bas, gauche). Ornements seulement dans
+                                                 la bande de bordure ; centre uni #f4ead4.
+  paper.webp              13 866 o    512×512    Fait main (PIL, bruit FFT périodique).
+                                                 Tuile sans couture, vérifiée en 2×2.
+  desk.webp              127 550 o   1024×1024    GenerateImage (Grok Bot), retravaillé
+                                                 (petite tache illisible sur le pied de
+                                                 lampe retirée). Centre dégagé pour les cartes.
+
+
+TAMPONS  —  256 × 256  —  fond transparent (sRGBA), encre #8b2e2e
+Fait main : texte rendu avec la police Bebas Neue (SIL Open Font License 1.1,
+https://fonts.google.com/specimen/Bebas+Neue), pas par une IA d’image.
+Usure d’encre et légère rotation (PIL). Encodage WebP : ImageMagick 7.
+
+  stamp-classified.webp   24 312 o    256×256    texte « CLASSIFIÉ »  (ovale, −11°)
+  stamp-redacted.webp     21 440 o    256×256    texte « CAVIARDÉ »   (mot de l’UI du jeu,
+                                                 js/board.js ; rectangle, +8°)
+  stamp-plan-not-proof.webp
+                          20 342 o    256×256    texte exact « PLAN, PAS PREUVE »
+                                                 (deux lignes : « PLAN, » / « PAS PREUVE », −6°)
+
+Copies sous les noms actuellement sondés par js/art.js (mêmes octets, mêmes images) :
+
+  stamp-classifie.webp    24 312 o    256×256    = stamp-classified.webp
+  stamp-caviarde.webp     21 440 o    256×256    = stamp-redacted.webp
+  stamp-plan.webp         20 342 o    256×256    = stamp-plan-not-proof.webp
+  stamp-pas-preuve.webp   20 342 o    256×256    = stamp-plan-not-proof.webp
+                                                 (un seul tampon combiné dans la demande
+                                                 d’origine ; pas deux textes séparés)
+
+
+ICÔNES SVG  —  viewBox 0 0 24 24, trait currentColor, caps arrondis
+Dessin original à la main (pas de chemins copiés). Convention de trait proche
+de Lucide (licence ISC), sans réutiliser leurs tracés.
+
+  icon-suspicion.svg         381 o    24×24    œil + sourcil (soupçon)
+  icon-secrecy.svg           330 o    24×24    cadenas (secret)
+  icon-evidence.svg          361 o    24×24    document (preuve)
+  icon-move.svg              453 o    24×24    traces de pas (déplacer)
+  icon-search.svg            283 o    24×24    loupe (collecter / chercher)
+  icon-rest.svg              280 o    24×24    croissant de lune (se reposer)
+  icon-dice.svg              631 o    24×24    dé à 5 pips (divulgation 2d6)
+
+
+SOURCES PNG  (non comptées dans le budget)
+  src/*.png — mêmes visuels aux dimensions finales, avant encodage WebP.
+
+
+LICENCES
+  Illustrations, portraits, bureau, papier, cadre, tampons, icônes :
+    originaux créés pour Dossier BAASS (PassCool_17 / Pascal Coulombe),
+    pour usage dans ce jeu.
+  Bebas Neue : SIL Open Font License 1.1 (police uniquement, pas les images).
+  Outil GenerateImage : génération d’images au service de ce projet ;
+    les fichiers livrés sont des œuvres commandées pour le jeu.

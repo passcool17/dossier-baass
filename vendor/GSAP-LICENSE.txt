@@ -1,0 +1,14 @@
+GSAP 3.15.1
+License: GreenSock standard "no charge" license.
+https://gsap.com/standard-license
+
+As of 2024, Webflow made GSAP free including previously Club-only plugins,
+including for commercial use. See:
+https://webflow.com/blog/gsap-becomes-free
+https://gsap.com/standard-license
+
+The npm package license field is:
+  Standard 'no charge' license: https://gsap.com/standard-license
+
+This file is a notice. The authoritative terms are at the URL above.
+Vendored file: gsap.min.js (from the official gsap npm package).

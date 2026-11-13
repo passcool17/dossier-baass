@@ -12,7 +12,7 @@ function store() {
 }
 
 export function defaultSettings() {
-  return { muted: false, tutorialDone: false, best: { facile: null, normal: null, difficile: null } };
+  return { muted: false, volume: 0.75, tutorialDone: false, best: { facile: null, normal: null, difficile: null } };
 }
 
 export function loadSettings() {
